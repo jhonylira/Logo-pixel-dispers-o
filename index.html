@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Página de Boas-Vindas - Rasterizze Arquitetura</title>
+  <!-- Importa a fonte Bebas Neue -->
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+  <style>
+    /* Estilo básico da página */
+    body {
+      margin: 0;
+      background-color: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      cursor: pointer;
+    }
+    /* Contêiner que abriga o texto e o efeito pixelado */
+    #logo-container {
+      position: relative;
+      display: inline-block;
+    }
+    /* Elemento que exibe o conteúdo (logo ou mensagem) */
+    #logo {
+      font-size: 80px;
+      font-family: 'Bebas Neue', sans-serif;
+      color: white;
+      text-align: center;
+      white-space: nowrap;
+      padding: 20px;
+      transition: opacity 0.5s ease;
+      user-select: none;
+      /* Estilo padrão para todos os estados */
+      font-style: normal;
+      font-weight: normal;
+    }
+    /* Contêiner para os pixels extraídos do canvas – sobreposto ao #logo */
+    #pixelEffect {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: none;
+    }
+    /* Cada “pixel” representa um bloco do desenho (8×8 pixels) */
+    .pixel {
+      position: absolute;
+      background-color: white;
+      opacity: 1;
+    }
+    /* Animação modificada: os pixels se dispersam e não reintegram */
+    @keyframes disintegrate {
+      0% {
+        transform: translate(0, 0);
+        opacity: 1;
+      }
+      100% {
+        transform: translate(var(--dx), var(--dy));
+        opacity: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="logo-container">
+    <!-- Estado 0: exibe o logo "R" -->
+    <div id="logo">R</div>
+    <!-- Contêiner para os pixels do efeito -->
+    <div id="pixelEffect"></div>
+  </div>
+
+  <script>
+    // Define os três estados desejados
+    const messages = [
+      "R",
+      "Bem vindo ao RASTERIZZE ARQUITETURA",
+      "Rasterizamos seus sonhos em projetos autênticos"
+    ];
+    let currentMessageIndex = 0;
+    let isAnimating = false;  // Flag para evitar cliques duplicados durante a animação
+
+    /**
+     * Cria um grid de pixels a partir do desenho do conteúdo atual.
+     * Utiliza um canvas off-screen para renderizar o texto e extrair os pixels.
+     */
+    function createTextPixelGrid() {
+      const container = document.getElementById("logo-container");
+      const logoDiv = document.getElementById("logo");
+      const pixelContainer = document.getElementById("pixelEffect");
+
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+
+      // Cria um canvas off-screen com as dimensões do contêiner
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+
+      ctx.clearRect(0, 0, width, height);
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      // Usa a mesma fonte e tamanho do elemento #logo
+      const computedStyle = window.getComputedStyle(logoDiv);
+      ctx.font = computedStyle.font;
+      ctx.fillStyle = "white";
+      ctx.fillText(logoDiv.textContent, width / 2, height / 2);
+
+      const imageData = ctx.getImageData(0, 0, width, height);
+      const data = imageData.data;
+
+      // Limpa quaisquer pixels antigos
+      pixelContainer.innerHTML = "";
+
+      // Define o tamanho do bloco: 8 (resultando em blocos de 8×8 pixels)
+      const step = 8;
+      for (let y = 0; y < height; y += step) {
+        for (let x = 0; x < width; x += step) {
+          const index = (y * width + x) * 4;
+          const alpha = data[index + 3];
+          if (alpha > 128) {
+            const pixelDiv = document.createElement("div");
+            pixelDiv.className = "pixel";
+            pixelDiv.style.width = step + "px";
+            pixelDiv.style.height = step + "px";
+            pixelDiv.style.left = x + "px";
+            pixelDiv.style.top = y + "px";
+
+            // Define deslocamentos aleatórios para o efeito de dispersão
+            const dx = (Math.random() - 0.5) * 60 + "px";
+            const dy = (Math.random() - 0.5) * 60 + "px";
+            pixelDiv.style.setProperty("--dx", dx);
+            pixelDiv.style.setProperty("--dy", dy);
+
+            // Atribui um atraso aleatório para um efeito mais orgânico
+            const delay = Math.random() * 0.5;
+            pixelDiv.style.animationDelay = delay + "s";
+
+            pixelContainer.appendChild(pixelDiv);
+          }
+        }
+      }
+    }
+
+    /**
+     * Aciona o efeito de desintegração (somente dispersão) e, após 2,5 segundos,
+     * avança para o próximo estado (se for 0 ou 1) ou redireciona se estiver no estado 2.
+     */
+    function triggerAnimation() {
+      if (isAnimating) return;
+      isAnimating = true;
+
+      const logoDiv = document.getElementById("logo");
+      const pixelContainer = document.getElementById("pixelEffect");
+
+      // Cria o grid de pixels a partir do conteúdo atual
+      createTextPixelGrid();
+
+      // Inicia o efeito: esmaece o texto e exibe os pixels dispersos
+      logoDiv.style.opacity = 0;
+      pixelContainer.style.display = "block";
+
+      // Aplica a animação de dispersão a cada pixel
+      const pixels = pixelContainer.querySelectorAll(".pixel");
+      pixels.forEach(pixel => {
+        pixel.style.animation = "disintegrate 2s ease-in-out forwards";
+      });
+
+      // Após 2,5 segundos, avança para o próximo estado ou redireciona
+      setTimeout(() => {
+        if (currentMessageIndex < messages.length - 1) {
+          currentMessageIndex++; // avança para o próximo estado
+          logoDiv.textContent = messages[currentMessageIndex];
+
+          // Mantém o estilo padrão para todos os estados
+          logoDiv.style.fontStyle = "normal";
+          logoDiv.style.fontWeight = "normal";
+
+          // Limpa e oculta o contêiner de pixels; exibe a nova mensagem
+          pixelContainer.innerHTML = "";
+          pixelContainer.style.display = "none";
+          logoDiv.style.opacity = 1;
+          isAnimating = false;
+        } else {
+          // Se estivermos no estado 2, redireciona para a tela inicial do site
+          window.location.href = "https://rasterizzearquitetura.com.br";
+        }
+      }, 2500);
+    }
+
+    // Configura o clique para acionar o efeito (garantindo que não haja cliques duplicados)
+    window.addEventListener("load", () => {
+      const container = document.getElementById("logo-container");
+      container.addEventListener("click", triggerAnimation);
+    });
+  </script>
+</body>
+</html>
